@@ -1,9 +1,22 @@
 # X-Ray-TLS
 
-This tools helps to decrypt TLS traffic by guessing TLS session key from process memory.
+X-Ray-TLS allows to inspect TLS-encrypted traffic made from local programs by extracting TLS session keys from process memory.
 
-**_NOTE:_** Latest version of the code is available at <https://github.com/eurecom-s3/x-ray-tls>.
+If using this work, please cite our paper:
+```bibtex
+@inproceedings{moriconi2024xraytls,
+  title={X-Ray-TLS: Transparent Decryption of TLS Sessions by Extracting Session Keys from Memory},
+  author={Moriconi, Florent and Levillain, Olivier and Francillon, Aurélien and Troncy, Raphael},
+  booktitle={Proceedings of the 2024 ACM Asia conference on Computer and Communications Security (ASIACCS)},
+  year={2024},
+  affiliations = {Eurecom, Samovar, Télécom SudParis, Institut Polytechnique de Paris}
+  extralink = {Code: https://github.com/eurecom-s3/x-ray-tls}
+}
+```
 
+## Getting started
+
+To come soon!
 
 ## Method
 
