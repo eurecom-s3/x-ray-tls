@@ -2,7 +2,7 @@
 
 X-Ray-TLS allows to inspect TLS-encrypted traffic made from local programs by extracting TLS session keys from process memory.
 
-If using this work, please cite our paper:
+If using this work, please cite [our paper](https://s3.eurecom.fr/docs/asiaccs24_moriconi.pdf):
 ```bibtex
 @inproceedings{moriconi2024xraytls,
   title={X-Ray-TLS: Transparent Decryption of TLS Sessions by Extracting Session Keys from Memory},
