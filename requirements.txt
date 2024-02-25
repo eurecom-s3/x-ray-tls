@@ -1,0 +1,7 @@
+pyshark==0.5.3
+ujson==5.4.0
+scapy==2.4.5
+cryptography==37.0.4
+tqdm==4.64.0
+docker==6.0.0
+cython==0.29.32

@@ -1,0 +1,197 @@
+diff --git a/epan/dissectors/packet-tls.c b/epan/dissectors/packet-tls.c
+index 737a913..d00fdb5 100644
+--- a/epan/dissectors/packet-tls.c
++++ b/epan/dissectors/packet-tls.c
+@@ -84,6 +84,16 @@ static gboolean tls_desegment          = TRUE;
+ static gboolean tls_desegment_app_data = TRUE;
+ static gboolean tls_ignore_mac_failed  = FALSE;
+ 
++// Variables to store secrets for TLS 1.3 as decryption is done in 2 steps (for each direction)
++#define TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES 48
++static gint tls13_client_secret_position = -1;  // -1 means not found
++static gint tls13_server_secret_position = -1;
++static guchar tls13_app_traffic_client_secret[TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES];
++static guchar tls13_app_traffic_server_secret[TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES];
++
++// Load app traffic keys on first app data record for each direction
++static gboolean first_app_data_record_from_client_seen = FALSE;
++static gboolean first_app_data_record_from_server_seen = FALSE;
+ 
+ /*********************************************************************
+  *
+@@ -1920,6 +1930,175 @@ dissect_ssl3_record(tvbuff_t *tvb, packet_info *pinfo,
+      */
+     ssl_debug_printf("dissect_ssl3_record: content_type %d %s\n",content_type, val_to_str_const(content_type, ssl_31_content_type, "unknown"));
+ 
++    // ### TLS 1.2 brute force ###
++    // Wait for client decoder
++    // Decoder will be populated automatically when all required elements are discovered (cipher, client random, etc.)
++    if (getenv("BRUTEFORCE_TLS12_FILE") && ssl->client && !is_from_server ) {
++        ssl_debug_printf("### Starting TLS brute force for TLS 1.2 ###\n");
++
++        FILE   *fp;
++        size_t read;
++        gboolean decryption_success = FALSE;
++        guchar master_secret_candidate[SSL_MASTER_SECRET_LENGTH];
++        int key_position = 0;
++
++        // BRUTEFORCE_TLS12_FILE is expected to be a binary file with all key candidates concatenated
++        fp = fopen(getenv("BRUTEFORCE_TLS12_FILE"), "rb");
++        if (fp == NULL) {
++            perror("Fail to open key candidates file");
++            exit(EXIT_FAILURE);
++        }       
++
++        while (!feof(fp)) {
++
++            read = fread(&master_secret_candidate, SSL_MASTER_SECRET_LENGTH, 1, fp);
++            if (read == 0) {  // last loop reads zero as file size is a multiple of SSL_MASTER_SECRET_LENGTH
++                continue;
++            }
++
++            // Set key candidate as master key of the decoder
++            ssl_data_set(&ssl->master_secret, master_secret_candidate, SSL_MASTER_SECRET_LENGTH);
++            ssl->state |= SSL_MASTER_SECRET;
++
++            // Re-generate encryption keys, IVs, etc. with PRF
++            if (ssl_generate_keyring_material(ssl) < 0) {
++                ssl_debug_printf("Fail to generate keyring material\n");
++                exit(EXIT_FAILURE);
++            }
++
++            /*
++            Client IV is used as implicit nonce (at least for some ciphers)
++            The value is written at the creation of the decoder but not updated later on
++            (as updating master key without recreating the decoder is not supported by default)
++            So use the new decoder created by ssl_generate_keyring_material
++            */
++            ssl->client = ssl->client_new;
++
++            decryption_success = decrypt_ssl3_record(tvb, pinfo, offset, ssl,
++                    content_type, record_version, record_length,
++                    content_type == SSL_ID_APP_DATA ||
++                    content_type == SSL_ID_HANDSHAKE, curr_layer_num_ssl);
++
++            if (decryption_success) {
++                printf("INFO Master secret found\n");
++                break;
++            }
++
++            key_position++;
++        }
++        fclose(fp);
++
++        // Output format is: key position;master key in hex
++        printf("\n");  // Ensure results are printed on the last line
++        if (decryption_success) {
++            printf("bruteforce_result=%d;", key_position);
++            for(int j = 0; j < SSL_MASTER_SECRET_LENGTH; j++) {
++                printf("%02x", master_secret_candidate[j]);
++            }
++        }
++        exit(EXIT_SUCCESS);
++    }
++
++    // ### TLS 1.3 brute force ###
++    if (
++        getenv("BRUTEFORCE_TLS13_FILE")
++        && content_type == SSL_ID_APP_DATA
++        && ((ssl->client && !is_from_server && tls13_client_secret_position < 0) || ((ssl->server && is_from_server && tls13_server_secret_position < 0)))
++    ) {
++        printf("### Starting TLS brute force for TLS 1.3 for %s secret ###\n", is_from_server ? "server" : "client" );
++
++        FILE   *fp;
++        size_t read;
++        gboolean decryption_success = FALSE;
++        StringInfo secret;
++        guchar key_candidate[TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES];
++        gint key_position = 0;
++
++        // BRUTEFORCE_TLS13_FILE is expected to be a binary file with all key candidates concatenated
++        fp = fopen(getenv("BRUTEFORCE_TLS13_FILE"), "rb");
++        if (fp == NULL) {
++            perror("Fail to open key candidates file");
++            exit(EXIT_FAILURE);
++        }
++        
++        ssl_data_alloc(&secret, TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES);
++
++        while (!feof(fp)) {
++
++            read = fread(&key_candidate, TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES, 1, fp);
++            if (read == 0) {  // last loop reads zero as file size is a multiple of TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES
++                continue;
++            }
++            ssl_data_set(&secret, key_candidate, TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES);
++
++            // Re-generate encryption keys, IVs, etc. with PRF
++            if (tls13_generate_keys(ssl, &secret, is_from_server) < 0) {
++                ssl_debug_printf("Fail to generate keyring material\n");
++                exit(EXIT_FAILURE);
++            }
++
++            // Despite its name decrypt_ssl3_record supports TLS 1.3
++            decryption_success = decrypt_ssl3_record(tvb, pinfo, offset, ssl,
++                    content_type, record_version, record_length,
++                    content_type == SSL_ID_APP_DATA ||
++                    content_type == SSL_ID_HANDSHAKE, curr_layer_num_ssl);
++            
++            if (decryption_success) {
++                if (is_from_server) {
++                    printf("INFO Server key found\n");
++                    tls13_server_secret_position = key_position;
++                    memcpy(&tls13_app_traffic_server_secret, secret.data, TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES);
++                } else {
++                    printf("INFO Client key found\n");
++                    tls13_client_secret_position = key_position;
++                    memcpy(&tls13_app_traffic_client_secret, secret.data, TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES);
++                }
++
++                break;
++            }
++            key_position++;
++        }
++
++        fclose(fp);
++    }
++
++    if (tls13_server_secret_position > -1 && tls13_client_secret_position > -1) {
++        // Output format is:
++        // client key position;
++        // client traffic key in hex (empty if key not found);
++        // server key position;
++        // server traffic key in hex (empty if key not found)
++        // If key is not found, key position indicates the last key index
++        // Use printf as ssl_debug_printf may be disabled
++
++        printf("\n");  // Ensure results are printed on the last line
++        printf("bruteforce_result=");
++        printf("%d;", tls13_client_secret_position);
++        for(int j = 0; j < TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES; j++) {
++            printf("%02x", tls13_app_traffic_client_secret[j]);
++        }
++        printf(";%d;", tls13_server_secret_position);
++        for(int j = 0; j < TLS13_APP_TRAFFIC_SECRET_LENGTH_BYTES; j++) {
++            printf("%02x", tls13_app_traffic_server_secret[j]);
++        }
++
++        exit(EXIT_SUCCESS);
++    }
++
++    /*
++    Allow to decrypt app traffic (application data records) without knowing handshake secrets (i.e., *_HANDSHAKE_TRAFFIC_SECRET)
++    Originally, Wireshark loads app traffic secrets on Finished record. Without HS, handshake records cannot be decrypted, therefore
++    app traffic secrets were never loaded. Fix: load app data secrets on first app data record (for each direction)
++    */
++    if (content_type == SSL_ID_APP_DATA && !first_app_data_record_from_client_seen && !is_from_server && ssl) {
++        tls13_change_key(ssl, &ssl_master_key_map, is_from_server, TLS_SECRET_APP);
++        first_app_data_record_from_client_seen = TRUE;
++    }
++    if (content_type == SSL_ID_APP_DATA && !first_app_data_record_from_server_seen && is_from_server && ssl) {
++        tls13_change_key(ssl, &ssl_master_key_map, is_from_server, TLS_SECRET_APP);
++        first_app_data_record_from_server_seen = TRUE;
++    }
++
+     /* try to decrypt record on the first pass, if possible. Store decrypted
+      * record for later usage (without having to decrypt again). The offset is
+      * used as 'key' to identify this record in the packet (we can have multiple
