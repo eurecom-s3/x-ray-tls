@@ -1,41 +1,37 @@
 # X-Ray-TLS
 
-X-Ray-TLS allows to inspect TLS-encrypted traffic made from local programs by extracting TLS session keys from process memory.
+X-Ray-TLS allows to inspect TLS-encrypted traffic made from local programs by extracting TLS session keys from process memory in a generic and transparent way.
 
-If using this work, please cite [our paper](https://s3.eurecom.fr/docs/asiaccs24_moriconi.pdf):
+If using this work, please cite [our paper](https://dl.acm.org/doi/10.1145/3634737.3637654):
 ```bibtex
-@inproceedings{moriconi2024xraytls,
-  title={X-Ray-TLS: Transparent Decryption of TLS Sessions by Extracting Session Keys from Memory},
-  author={Moriconi, Florent and Levillain, Olivier and Francillon, Aurélien and Troncy, Raphael},
-  booktitle={Proceedings of the 2024 ACM Asia conference on Computer and Communications Security (ASIACCS)},
-  year={2024},
-  affiliations = {Eurecom, Samovar, Télécom SudParis, Institut Polytechnique de Paris}
-  extralink = {Code: https://github.com/eurecom-s3/x-ray-tls}
+@inproceedings{10.1145/3634737.3637654,
+  author = {Moriconi, Florent and Levillain, Olivier and Francillon, Aur\'{e}lien and Troncy, Raphael},
+  title = {X-Ray-TLS: Transparent Decryption of TLS Sessions by Extracting Session Keys from Memory},
+  year = {2024},
+  isbn = {9798400704826},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3634737.3637654},
+  doi = {10.1145/3634737.3637654},
+  booktitle = {Proceedings of the 19th ACM Asia Conference on Computer and Communications Security},
+  pages = {35–48},
+  numpages = {14},
+  keywords = {TLS, transport layer security, TLS decryption, memory analysis},
+  location = {Singapore, Singapore},
+  series = {ASIA CCS '24}
 }
 ```
 
+## Properties
+
+- **Generic**: no prior knowledge on target program internals
+- **Transparent**: minimum intrusiveness, no program cooperation
+- **Practical**: only Linux kernel facilities (no hypervisor)
+- **Support TLS hardening**: Perfect Forward Secrecy, certificate pinning
+
 ## Getting started
 
-To come soon!
-
-## Method
-
-1. eBPF rules are setup to monitor network traffic
-2. On TLS ClientHello, the process initiating the connection is freezed, core dumped and released.
-3. When TLS handshake is done, the source process is again freezed, core dumped and released.
-4. The TLS session key is extracted from the diff of core dumps.
-
-
-## Run benchmark
-
-You must have Docker and pytest installed, then run from the root folder:
-
-```sh
-bash benchmark/benchmark.sh 
-```
-
-
-## Run with Docker
+### Run with Docker
 
 Running TLS traffic analyzer in docker is supported on the following host OS:
 - ubuntu:20.04
@@ -60,10 +56,9 @@ docker run --privileged -it --rm --network host --pid host tls-traffic-analyzer:
 docker run --privileged -it --rm -v $(pwd)/dumps:/dumps --network host --pid host tls-traffic-analyzer:latest -i $INTERFACE -o /dumps --chown-traffic-dumps $UID --commands curl
 ```
 
+### Run without Docker
 
-## Run without Docker
-
-Follow instructions in `docker/Dockerfile`.
+Follow instructions in `docker/Dockerfile` to setup required environment.
 
 The program must be run as *root*
 
@@ -71,8 +66,7 @@ The program must be run as *root*
 sudo python3 src/main.py
 ```
 
-
-## Run traffic analysis on applications running in a Docker container
+### Run traffic analysis on applications running in a Docker container
 
 Applications executed in a Docker container run in a different namespace.
 By providing `--container` parameter (container name or id), this tool will bind to the network namespace of the target container (but not other namespaces, like mount namespace).
@@ -83,8 +77,7 @@ Furthermore, if running the tool from a Docker container, you should give access
 docker run --privileged -it --rm -v $(pwd)/dumps:/dumps -v /var/run/docker.sock:/var/run/docker.sock --network host --pid host tls-traffic-analyzer:latest -o /dumps --chown-traffic-dumps $UID --container my_container -vv
 ```
 
-
-## Running on all applications on the host system
+### Running on all applications on the host system
 
 Doing traffic analysis on all applications running on the host system is not probably not what you want.
 Depending on the configuration, this tool may freeze applications for short periods of time and decrypt TLS sessions
