@@ -97,7 +97,7 @@ Default to `/opt/wireshark-custom/bin`. `tshark` and `editcap` binaries are expe
 - MEM_REGIONS: Restrict memory dump to regions with paths defined here (separated by comma). Default is to dump all regions with writable flag.
 Examples: "[heap]" (heap only), "[heap]," (head and anonymous regions), "[heap],/usr/lib/x86_64-linux-gnu/libnghttp2.so.14.19.0" (heap and a statically assigned memory region).  
 To only dump anonymous regions (i.e., dynamically assigned using mmap), use "," (do NOT use "" as it would disable the feature flag).
-# (not implemented) - MIN_DIFF_LENGTH_BYTES: If set, only changed parts of the memory larger than MIN_DIFF_LENGTH_BYTES will be added to the memory diff. If not set, all changed parts will be added (with a granularity of 8 bytes).
+- **(not implemented) - MIN_DIFF_LENGTH_BYTES: If set, only changed parts of the memory larger than MIN_DIFF_LENGTH_BYTES will be added to the memory diff. If not set, all changed parts will be added (with a granularity of 8 bytes).**
 
 
 ## Troubleshoot
