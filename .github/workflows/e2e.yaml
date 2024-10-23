@@ -43,7 +43,7 @@ jobs:
           load: true
           build-args: BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/)
           cache-from: type=local,src=.cache/docker
-          cache-to: type=local,src=.cache/docker
+          cache-to: type=local,dest=.cache/docker
 
       - name: Start container
         run: |
