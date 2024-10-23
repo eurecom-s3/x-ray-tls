@@ -37,25 +37,37 @@ jobs:
             .cache/docker
           key: ${{ env.CACHE_KEY }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3    
+      # TODO: don't use buildx unil the image can be build and used on different OS/kernels, which is currently not the cache
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v3    
 
+      # - name: Build Docker image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     file: docker/Dockerfile
+      #     tags: tls-traffic-analyzer:latest
+      #     push: false
+      #     load: true
+      #     build-args: BASE_IMAGE=${{ env.BASE_IMAGE }}
+      #     cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
+      #     cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
+        
       - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          file: docker/Dockerfile
-          tags: tls-traffic-analyzer:latest
-          push: false
-          load: true
-          build-args: BASE_IMAGE=${{ env.BASE_IMAGE }}
-          cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
-          cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
+        run: |
+          if [ -f ${{ env.DOCKER_CACHE_DIR }}/tls-traffic-analyzer.tar ]; then
+            echo "Loading cached image"
+            docker load -i ${{ env.DOCKER_CACHE_DIR }}/tls-traffic-analyzer.tar
+          else
+            echo "No cached image found: building"
+            docker build -t tls-traffic-analyzer:latest --no-cache --build-arg BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/) -f docker/Dockerfile .
+            docker save -o ${{ env.DOCKER_CACHE_DIR }}/tls-traffic-analyzer.tar tls-traffic-analyzer:latest
+          fi
 
       - name: Start container
         run: |
           docker run \
             --privileged \
-            -it --rm \
+            -it --rm -d \
             -v $(pwd)/dumps:/dumps \
             --network host \
             --pid host \
