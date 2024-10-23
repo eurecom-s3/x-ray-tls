@@ -37,7 +37,7 @@ jobs:
       - name: Sleep and show logs
         run: sleep 5 && docker logs $(docker ps -q)
       
-      - name: Run curl
+      - name: Run curl to www.google.com
         run: curl -v -o /dev/null https://www.google.com
       
       - name: Sleep and show logs
@@ -46,13 +46,10 @@ jobs:
       - name: Save container logs
         run: docker logs $(docker ps -q) > dumps/container.log
 
-      - name: Stop container
-        run: docker stop $(docker ps -q)
-      
       - name: List dumps directory
         run: |
           ls -lh dumps/
-      
+
       - uses: actions/upload-artifact@v4
         with:
           name: dumps-${{ github.run_id }}
@@ -61,7 +58,7 @@ jobs:
 
       - name: Ensure at least one pcap file exists
         run: |
-          if [ ! -f dumps/*.pcap ]; then
+          if [ -z "$(find dumps -name '*.pcap' -print -quit)" ]; then
             echo "No pcap files found"
             exit 1
           fi
@@ -72,4 +69,11 @@ jobs:
 
       - name: Print pcap file
         run: |
-          tshark -r dumps/*.pcap -V
+          for file in dumps/*.pcap; do
+            echo "Dump file: $file"
+            docker exec -it $(docker ps -q) tshark -r /dumps/$file -V
+          done
+
+      - name: Stop container
+        run: |
+          docker stop $(docker ps -q)
