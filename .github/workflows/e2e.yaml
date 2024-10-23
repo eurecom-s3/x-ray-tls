@@ -60,6 +60,7 @@ jobs:
           else
             echo "No cached image found: building"
             docker build -t tls-traffic-analyzer:latest --no-cache --build-arg BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/) -f docker/Dockerfile .
+            mkdir -p ${{ env.DOCKER_CACHE_DIR }}
             docker save -o ${{ env.DOCKER_CACHE_DIR }}/tls-traffic-analyzer.tar tls-traffic-analyzer:latest
           fi
 
