@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     strategy:
@@ -19,10 +23,6 @@ jobs:
         run: |
           docker build -t tls-traffic-analyzer:latest --no-cache --build-arg BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/) -f docker/Dockerfile .
 
-      - name: Get netwok interface
-        run: |
-          ip -4 route | awk '/default/{print $5}' >> $GITHUB_ENV
-      
       - name: Start container
         run: |
           docker run \
@@ -32,7 +32,7 @@ jobs:
             --network host \
             --pid host \
             tls-traffic-analyzer:latest \
-            -i $INTERFACE -o /dumps --chown-traffic-dumps $UID --commands curl
+            -i $(ip -4 route | awk '/default/{print $5}') -o /dumps --chown-traffic-dumps $UID --commands curl
 
       - name: Sleep and show logs
         run: sleep 5 && docker logs $(docker ps -q)
