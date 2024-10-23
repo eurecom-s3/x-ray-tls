@@ -26,7 +26,7 @@ jobs:
       - name: Set environment variables
         run: |
           echo "BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/)" >> $GITHUB_ENV
-          echo "CACHE_KEY=cache-${{ runner.os }}-$(uname -r)" >> $GITHUB_ENV
+          echo "CACHE_KEY=cache-${{ runner.os }}-$(uname -r)-${{ hashFiles('docker/Dockerfile') }}" >> $GITHUB_ENV
           echo "DOCKER_CACHE_DIR=.cache/docker" >> $GITHUB_ENV
 
       # Cache must be per OS and kernel version
