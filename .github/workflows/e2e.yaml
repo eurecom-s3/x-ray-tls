@@ -53,7 +53,7 @@ jobs:
         run: |
           docker run \
             --privileged \
-            -it --rm -d \
+            -it --rm \
             -v $(pwd)/dumps:/dumps \
             --network host \
             --pid host \
