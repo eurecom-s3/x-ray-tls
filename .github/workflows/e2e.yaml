@@ -23,20 +23,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set environment variables
+        run: |
+          echo "BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/)" >> $GITHUB_ENV
+          echo "CACHE_KEY=cache-${{ runner.os }}-$(uname -r)" >> $GITHUB_ENV
+          echo "DOCKER_CACHE_DIR=.cache/docker" >> $GITHUB_ENV
+
       # Cache must be per OS and kernel version
       - name: Set up Cache
         uses: actions/cache@v3
         with:
           path: |
             .cache/docker
-          key: cache-${{ runner.os }}-$(uname -r)
+          key: ${{ env.CACHE_KEY }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set BASE_IMAGE
-        run: |
-          echo "BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/)" >> $GITHUB_ENV
+        uses: docker/setup-buildx-action@v3    
 
       - name: Build Docker image
         uses: docker/build-push-action@v6
@@ -46,8 +48,8 @@ jobs:
           push: false
           load: true
           build-args: BASE_IMAGE=${{ env.BASE_IMAGE }}
-          cache-from: type=local,src=.cache/docker
-          cache-to: type=local,dest=.cache/docker
+          cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
+          cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
 
       - name: Start container
         run: |
