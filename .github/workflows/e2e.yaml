@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            .cache/docker
+            ${{ env.DOCKER_CACHE_DIR }}
           key: ${{ env.CACHE_KEY }}
 
       # TODO: don't use buildx unil the image can be built and used on different OS/kernels, which is currently not the case
