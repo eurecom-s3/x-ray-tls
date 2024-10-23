@@ -1,0 +1,50 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  e2e:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04    
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t tls-traffic-analyzer:latest --no-cache --build-arg BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/) -f docker/Dockerfile .
+
+      - name: Get netwok interface
+        run: |
+          ip -4 route | awk '/default/{print $5}' >> $GITHUB_ENV
+      
+      - name: Start container
+        run: |
+          docker run \
+            --privileged \
+            -it --rm -d \
+            -v $(pwd)/dumps:/dumps \
+            --network host \
+            --pid host \
+            tls-traffic-analyzer:latest \
+            -i $INTERFACE -o /dumps --chown-traffic-dumps $UID --commands curl
+
+      - name: Sleep and show logs
+        run: sleep 5 && docker logs $(docker ps -q)
+      
+      - name: Run curl
+        run: curl -v https://www.google.com
+      
+      - name: Sleep and show logs
+        run: sleep 5 && docker logs $(docker ps -q)
+      
+      - name: Stop container
+        run: docker stop $(docker ps -q)
+      
+      - name: Check for network dumps
+        run: ls -l dumps/
