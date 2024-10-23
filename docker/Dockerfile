@@ -76,6 +76,9 @@ RUN \
 COPY requirements.txt /opt
 RUN pip3 install -r /opt/requirements.txt
 
+# Add /opt/wireshark-custom/bin/ to PATH
+ENV PATH /opt/wireshark-custom/bin:$PATH
+
 # Copy and compile (Cython) code
 ENV PYTHONPATH /app
 WORKDIR /app
