@@ -20,11 +20,30 @@ jobs:
           - ubuntu-20.04    
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Cache must be per OS and kernel version
+      - name: Set up Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            .cache/docker
+          key: cache-${{ runner.os }}-$(uname -r)
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        run: |
-          docker build -t tls-traffic-analyzer:latest --no-cache --build-arg BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/) -f docker/Dockerfile .
+        uses: docker/build-push-action@v6
+        with:
+          file: docker/Dockerfile
+          tags: tls-traffic-analyzer:latest
+          push: false
+          load: true
+          build-args: BASE_IMAGE=$(echo ${{ matrix.os }} | sed s/-/:/)
+          cache-from: type=local,src=.cache/docker
+          cache-to: type=local,src=.cache/docker
 
       - name: Start container
         run: |
