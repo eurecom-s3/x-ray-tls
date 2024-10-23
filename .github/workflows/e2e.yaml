@@ -74,7 +74,7 @@ jobs:
         run: |
           for file in dumps/*.pcap; do
             echo "Dump file: $file"
-            docker exec -it $(docker ps -q) tshark -r /dumps/$file -V
+            docker exec $(docker ps -q) tshark -r /dumps/$file -V
           done
 
       - name: Stop container
