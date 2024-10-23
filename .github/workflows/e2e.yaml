@@ -45,7 +45,7 @@ jobs:
           tags: tls-traffic-analyzer:latest
           push: false
           load: true
-          build-args: BASE_IMAGE=$BASE_IMAGE
+          build-args: BASE_IMAGE=${{ env.BASE_IMAGE }}
           cache-from: type=local,src=.cache/docker
           cache-to: type=local,dest=.cache/docker
 
