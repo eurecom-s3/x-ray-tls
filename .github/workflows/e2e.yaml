@@ -37,7 +37,7 @@ jobs:
             .cache/docker
           key: ${{ env.CACHE_KEY }}
 
-      # TODO: don't use buildx unil the image can be build and used on different OS/kernels, which is currently not the cache
+      # TODO: don't use buildx unil the image can be built and used on different OS/kernels, which is currently not the case
       # - name: Set up Docker Buildx
       #   uses: docker/setup-buildx-action@v3    
 
