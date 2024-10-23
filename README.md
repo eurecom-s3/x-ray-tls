@@ -1,5 +1,9 @@
 # X-Ray-TLS
 
+[![Project Status: Concept – Minimal or no implementation has been done yet, or the repository is only intended to be a limited example, demo, or proof-of-concept.](https://www.repostatus.org/badges/latest/concept.svg)](https://www.repostatus.org/#concept)
+
+![E2E Tests](https://github.com/eurecom-s3/x-ray-tls/actions/workflows/e2e.yaml/badge.svg)
+
 X-Ray-TLS allows to inspect TLS-encrypted traffic made from local programs by extracting TLS session keys from process memory in a generic and transparent way.
 
 If using this work, please cite [our paper](https://dl.acm.org/doi/10.1145/3634737.3637654):
