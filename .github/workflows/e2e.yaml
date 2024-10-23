@@ -32,19 +32,44 @@ jobs:
             --network host \
             --pid host \
             tls-traffic-analyzer:latest \
-            -i $(ip -4 route | awk '/default/{print $5}') -o /dumps --chown-traffic-dumps $UID --commands curl
+            -i $(ip -4 route | awk '/default/{print $5}') -o /dumps --chown-traffic-dumps $UID --commands curl --verbose
 
       - name: Sleep and show logs
         run: sleep 5 && docker logs $(docker ps -q)
       
       - name: Run curl
-        run: curl -v https://www.google.com
+        run: curl -v -o /dev/null https://www.google.com
       
       - name: Sleep and show logs
         run: sleep 5 && docker logs $(docker ps -q)
       
+      - name: Save container logs
+        run: docker logs $(docker ps -q) > dumps/container.log
+
       - name: Stop container
         run: docker stop $(docker ps -q)
       
-      - name: Check for network dumps
-        run: ls -l dumps/
+      - name: List dumps directory
+        run: |
+          ls -lh dumps/
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dumps-${{ github.run_id }}
+          path: dumps/
+          retention-days: 5
+
+      - name: Ensure at least one pcap file exists
+        run: |
+          if [ ! -f dumps/*.pcap ]; then
+            echo "No pcap files found"
+            exit 1
+          fi
+
+      - name: Print stats.json
+        run: |
+          cat dumps/stats.json | jq
+
+      - name: Print pcap file
+        run: |
+          tshark -r dumps/*.pcap -V
