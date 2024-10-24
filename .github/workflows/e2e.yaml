@@ -110,7 +110,8 @@ jobs:
 
       - name: Print pcap file
         run: |
-          for file in dumps/*.pcap; do
+          cd dumps
+          for file in *.pcap; do
             echo "Dump file: $file"
             docker exec $(docker ps -q) tshark -r /dumps/$file -V
           done
